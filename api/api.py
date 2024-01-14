@@ -1,7 +1,8 @@
-from flask import Flask, request, jsonify
+from flask import Flask, request, jsonify, session
 import database
 import sqlite3
 import argon2
+from argon2.exceptions import VerifyMismatchError
 
 app = Flask(__name__)
 
@@ -21,16 +22,21 @@ def login():
     with database.Database() as db:
         saved_password = db.get_commissioner_login(request_email)
     if saved_password and request_password:
-        if argon2.verify_password(saved_password, request_password.encode()):
+        try:
+            argon2.verify_password(saved_password, request_password.encode())
             return jsonify({"status": "success", "account": "commissioner"})
+        except VerifyMismatchError:
+            pass
 
     # check voter login
     with database.Database() as db:
         saved_password = db.get_login(request_email)
+    
     if saved_password and request_password:
-        if argon2.verify_password(saved_password, request_password.encode()):
+        try:
+            argon2.verify_password(saved_password, request_password.encode())
             return jsonify({"status": "success", "account": "voter"})
-        else:
+        except VerifyMismatchError:
             return jsonify({"status": "failed"}), 401
         
     else:
@@ -97,6 +103,60 @@ def get_election_results():
         return jsonify(response_data)
     else:
         return jsonify({"status": "Ongoing"}), 200
+
+@app.route("/gevs/candidates", methods=["GET"])
+def get_candidates():
+    with database.Database() as db:
+        candidates = db.get_all_candidates()
+
+    if candidates:
+        return jsonify({"status": "success", "candidates": candidates})
+    else:
+        return jsonify({"status": "failed", "message": "Failed to fetch candidates"}), 500
+
+@app.route("/gevs/vote", methods=["POST"])
+def vote():
+    data = request.get_json()
+    voter_email = session.get("email")
+    candidate_id = data.get("candidate_id")
+
+    if not voter_email:
+        return jsonify({"status": "failed", "message": "User not logged in"}), 401
+
+    with database.Database() as db:
+        # Check if the voter has already voted
+        if db.has_voter_voted(voter_email):
+            return jsonify({"status": "failed", "message": "Voter has already voted"}), 400
+
+        # Cast the vote
+        if db.cast_vote(voter_email, candidate_id):
+            return jsonify({"status": "success", "message": "Vote submitted successfully"})
+        else:
+            return jsonify({"status": "failed", "message": "Failed to submit vote"}), 500
+
+@app.route("/gevs/check_vote_status", methods=["GET"])
+def check_vote_status():
+    data = request.get_json()
+    voter_email = data.get("email")
+
+    if not voter_email:
+        return jsonify({"status": "failed", "message": "Email not provided"}), 400
+
+    with database.Database() as db:
+        has_voted = db.has_voter_voted(voter_email)
+
+    return jsonify({"status": "success", "has_voted": has_voted})
+
+@app.route("/gevs/constituencies", methods=["GET"])
+def get_constituencies():
+    with database.Database() as db:
+        constituencies = db.get_constituencies()
+
+    if constituencies:
+        return jsonify({"status": "success", "constituencies": constituencies})
+    else:
+        return jsonify({"status": "failed", "message": "Failed to fetch constituencies"}), 500
+
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
