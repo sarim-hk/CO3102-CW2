@@ -5,7 +5,7 @@ import requests
 app = Flask(__name__)
 app.secret_key = secrets.token_hex(16)
 
-API_BASE_URL = "http://localhost:5001/api"
+API_BASE_URL = "http://localhost:5001/gevs"
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -51,8 +51,7 @@ def register():
 
         response = requests.post(api_url, json=payload)
 
-        if response.status_code == 200 and response.json().get("status") == "success":
-            session["email"] = email
+        if response.json().get("status") == "success":
             return redirect(url_for("dashboard"))
         else:
             error_message = response.json().get("message", "Registration failed. Please try again.")
