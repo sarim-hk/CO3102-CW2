@@ -1,11 +1,12 @@
-from flask import Flask, request, jsonify, session
+from flask import Flask, request, jsonify, session, redirect, url_for, render_template
 import database
-import sqlite3
 import argon2
 from argon2.exceptions import VerifyMismatchError
+import requests
 
 app = Flask(__name__)
 
+# Database setup
 with database.Database() as db:
     db._create_tables()
     db._populate_uvc_codes()
@@ -14,13 +15,13 @@ with database.Database() as db:
 @app.route("/gevs/login", methods=["POST"])
 def login():
     data = request.get_json()
-
     request_email = data.get("email")
     request_password = data.get("password")
 
-    # check commissioner login
+    # Check commissioner login
     with database.Database() as db:
         saved_password = db.get_commissioner_login(request_email)
+
     if saved_password and request_password:
         try:
             argon2.verify_password(saved_password, request_password.encode())
@@ -28,24 +29,22 @@ def login():
         except VerifyMismatchError:
             pass
 
-    # check voter login
+    # Check voter login
     with database.Database() as db:
         saved_password = db.get_login(request_email)
-    
+
     if saved_password and request_password:
         try:
             argon2.verify_password(saved_password, request_password.encode())
             return jsonify({"status": "success", "account": "voter"})
         except VerifyMismatchError:
             return jsonify({"status": "failed"}), 401
-        
     else:
         return jsonify({"status": "failed"}), 400
 
 @app.route("/gevs/register", methods=["POST"])
 def register():
     data = request.get_json()
-
     email = data.get("email")
     password = data.get("password")
     full_name = data.get("full_name")
@@ -72,7 +71,7 @@ def register():
         return jsonify({"status": "success", "voter_id": voter_id})
     else:
         return jsonify({"status": "failed", "message": "Registration failed"}), 500
-            
+
 @app.route("/gevs/constituency/<constituency_name>", methods=["GET"])
 def get_constituency_results(constituency_name):
     with database.Database() as db:
@@ -84,7 +83,7 @@ def get_constituency_results(constituency_name):
             "results": [{"candidate": result[0], "party": result[1], "vote_count": result[2]} for result in results]
         })
     else:
-        return None
+        return jsonify({"status": "failed", "message": "Failed to fetch constituency results"}), 500
 
 @app.route("/gevs/results", methods=["GET"])
 def get_election_results():
@@ -113,6 +112,16 @@ def get_candidates():
         return jsonify({"status": "success", "candidates": candidates})
     else:
         return jsonify({"status": "failed", "message": "Failed to fetch candidates"}), 500
+
+@app.route("/gevs/constituencies", methods=["GET"])
+def get_constituencies():
+    with database.Database() as db:
+        constituencies = db.get_constituencies()
+
+    if constituencies:
+        return jsonify({"status": "success", "constituencies": constituencies})
+    else:
+        return jsonify({"status": "failed", "message": "Failed to fetch constituencies"}), 500
 
 @app.route("/gevs/vote", methods=["POST"])
 def vote():
@@ -146,17 +155,6 @@ def check_vote_status():
         has_voted = db.has_voter_voted(voter_email)
 
     return jsonify({"status": "success", "has_voted": has_voted})
-
-@app.route("/gevs/constituencies", methods=["GET"])
-def get_constituencies():
-    with database.Database() as db:
-        constituencies = db.get_constituencies()
-
-    if constituencies:
-        return jsonify({"status": "success", "constituencies": constituencies})
-    else:
-        return jsonify({"status": "failed", "message": "Failed to fetch constituencies"}), 500
-
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
