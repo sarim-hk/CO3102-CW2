@@ -58,7 +58,9 @@ class Database:
                 password TEXT,
                 UVC TEXT,
                 constituency_id INTEGER,
-                FOREIGN KEY (constituency_id) REFERENCES Constituency (constituency_id)
+                selected_candidate_id INTEGER,
+                FOREIGN KEY (constituency_id) REFERENCES Constituency (constituency_id),
+                FOREIGN KEY (selected_candidate_id) REFERENCES Candidate (canid)
             )
         """)
 
@@ -231,3 +233,45 @@ class Database:
 
         seats_results = self.cursor.fetchall()
         return [{"party": result[0], "seat": result[1]} for result in seats_results]
+
+    def has_voter_voted(self, email):
+        """
+        Check if the voter has already voted.
+        Returns True or False.
+        """
+        self.cursor.execute("SELECT selected_candidate_id FROM Voter WHERE voter_id = ?", (email,))
+        result = self.cursor.fetchone()
+        print(result)
+
+        return result is not None and result[0] is not None
+
+    def cast_vote(self, email, candidate_id):
+        """
+        Cast the vote for the specified candidate.
+        Returns True or None depending on whether the vote was successful.
+        """
+        try:
+            self.cursor.execute("UPDATE Voter SET selected_candidate_id = ? WHERE voter_id = ?", (candidate_id, email))
+            self.cursor.connection.commit()
+            return True
+        except Exception as e:
+            print(f"Error during vote submission: {e}")
+            return None
+
+    def get_all_candidates(self):
+        """
+        Fetch all candidates with their ids and parties.
+        Returns a list of dictionaries containing candidate id, name, and party.
+        """
+        self.cursor.execute("SELECT Candidate.canid, Candidate.candidate, Party.party FROM Candidate JOIN Party ON Candidate.party_id = Party.party_id")
+        candidates = self.cursor.fetchall()
+        return [{"id": candidate[0], "name": candidate[1], "party": candidate[2]} for candidate in candidates]
+
+    def get_constituencies(self):
+        """
+        Get all constituencies and return as a list of dictionaries.
+        """
+        self.cursor.execute("SELECT constituency_id, constituency_name FROM Constituency")
+        constituencies = self.cursor.fetchall()
+
+        return [{"constituency_id": constituency[0], "constituency_name": constituency[1]} for constituency in constituencies]
