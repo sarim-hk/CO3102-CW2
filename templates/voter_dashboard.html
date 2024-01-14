@@ -30,7 +30,9 @@
         <select name="candidate" id="candidate">
             <!-- Populate with candidate options dynamically -->
             {% for candidate in constituency_candidates %}
-                <option value="{{ candidate.id }}">{{ candidate.name }} - {{ candidate.party }}</option>
+                {% if candidate.constituency_id == voter_constituency %}
+                    <option value="{{ candidate.id }}">{{ candidate.name }} - {{ candidate.party }}</option>
+                {% endif %}
             {% endfor %}
         </select>
         <button type="submit">Submit Vote</button>

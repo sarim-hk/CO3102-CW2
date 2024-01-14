@@ -260,12 +260,12 @@ class Database:
 
     def get_all_candidates(self):
         """
-        Fetch all candidates with their ids and parties.
-        Returns a list of dictionaries containing candidate id, name, and party.
+        Fetch all candidates with their ids, names, parties, and constituency ids.
+        Returns a list of dictionaries containing candidate id, name, party, and constituency id.
         """
-        self.cursor.execute("SELECT Candidate.canid, Candidate.candidate, Party.party FROM Candidate JOIN Party ON Candidate.party_id = Party.party_id")
+        self.cursor.execute("SELECT Candidate.canid, Candidate.candidate, Party.party, Candidate.constituency_id FROM Candidate JOIN Party ON Candidate.party_id = Party.party_id")
         candidates = self.cursor.fetchall()
-        return [{"id": candidate[0], "name": candidate[1], "party": candidate[2]} for candidate in candidates]
+        return [{"id": candidate[0], "name": candidate[1], "party": candidate[2], "constituency_id": candidate[3]} for candidate in candidates]
 
     def get_constituencies(self):
         """
@@ -275,3 +275,12 @@ class Database:
         constituencies = self.cursor.fetchall()
 
         return [{"constituency_id": constituency[0], "constituency_name": constituency[1]} for constituency in constituencies]
+    
+    def get_voter_constituency(self, voter_id):
+        self.cursor.execute("SELECT constituency_id FROM Voter WHERE voter_id = ?", (voter_id,))
+        result = self.cursor.fetchone()
+
+        if result:
+            return result[0]
+        else:
+            return None

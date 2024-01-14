@@ -123,6 +123,21 @@ def get_constituencies():
     else:
         return jsonify({"status": "failed", "message": "Failed to fetch constituencies"}), 500
 
+@app.route("/gevs/voter_constituency", methods=["GET"])
+def get_voter_constituency():
+    data = request.get_json()
+    
+    voter_id = data.get("voter_id")
+    with database.Database() as db:
+        voter_constituency = db.get_voter_constituency(voter_id)
+
+    if voter_constituency:
+        print(voter_constituency)
+        return jsonify({"status": "success", "voter_constituency": voter_constituency})
+    else:
+        return jsonify({"status": "failed", "message": "Failed to fetch voter constituency"}), 500
+
+
 @app.route("/gevs/vote", methods=["POST"])
 def vote():
     data = request.get_json()

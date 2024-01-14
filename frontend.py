@@ -94,7 +94,16 @@ def voter_dashboard():
     else:
         has_voted = None
 
-    return render_template("voter_dashboard.html", email=email, has_voted=has_voted, constituency_candidates=constituency_candidates)
+    api_url = f"{API_BASE_URL}/voter_constituency"
+    payload = {"voter_id": email}
+    response = requests.get(api_url, json=payload)
+    
+    if response.json().get("status") == "success":
+        voter_constituency = response.json().get("voter_constituency")
+    else:
+        voter_constituency = None
+
+    return render_template("voter_dashboard.html", email=email, has_voted=has_voted, constituency_candidates=constituency_candidates, voter_constituency=voter_constituency)
 
 @app.route("/commissioner_dashboard", methods=["GET", "POST"])
 def commissioner_dashboard():
