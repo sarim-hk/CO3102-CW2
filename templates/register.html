@@ -29,11 +29,18 @@
         <label for="uvc">UVC:</label>
         <input type="text" name="uvc" required>
         <br>
-        <label for="constituency_id">Constituency ID:</label>
-        <input type="text" name="constituency_id" required>
+
+        <!-- Loop through constituencies to generate options -->
+        <label for="constituency_id">Constituency:</label>
+        <select name="constituency_id" id="constituency_id" required>
+            {% for constituency in constituencies %}
+            <option value="{{ constituency.constituency_id }}">{{ constituency.constituency_name }}</option>
+            {% endfor %}
+        </select>
+        
         <br>
         <button type="submit">Register</button>
-    </form>
+        </form>
 </body>
 
 </html>
