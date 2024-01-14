@@ -17,14 +17,22 @@ def login():
     request_email = data.get("email")
     request_password = data.get("password")
 
+    # check commissioner login
     with database.Database() as db:
-        saved_password = db.get_login(request_email)
-
+        saved_password = db.get_commissioner_login(request_email)
     if saved_password and request_password:
         if argon2.verify_password(saved_password, request_password.encode()):
-            return jsonify({"status": "success"})
+            return jsonify({"status": "success", "account": "commissioner"})
+
+    # check voter login
+    with database.Database() as db:
+        saved_password = db.get_login(request_email)
+    if saved_password and request_password:
+        if argon2.verify_password(saved_password, request_password.encode()):
+            return jsonify({"status": "success", "account": "voter"})
         else:
             return jsonify({"status": "failed"}), 401
+        
     else:
         return jsonify({"status": "failed"}), 400
 

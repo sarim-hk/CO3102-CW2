@@ -1,4 +1,5 @@
 import sqlite3
+import argon2
 
 class Database:
     def __init__(self):
@@ -61,6 +62,13 @@ class Database:
             )
         """)
 
+        self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Commissioner (
+                commissioner_id TEXT PRIMARY KEY,
+                password TEXT
+            )
+        """)
+
         self.cursor.connection.commit()
 
     def _populate_uvc_codes(self):
@@ -113,6 +121,12 @@ class Database:
                 VALUES (?, ?, ?, ?)
                 """, ('Candidate 1', 2, 1, 0))
 
+            hashed_password = argon2.hash_password("shangrila2024$".encode())
+            self.cursor.execute("""
+                INSERT INTO Commissioner (commissioner_id, password)
+                VALUES (?, ?)
+                """, ("election@shangrila.gov.sr", hashed_password))
+
             self.cursor.connection.commit()
 
     def get_login(self, email):
@@ -122,6 +136,19 @@ class Database:
         """
 
         self.cursor.execute("SELECT password FROM Voter WHERE voter_id = ?", (email,))
+        result = self.cursor.fetchone()
+
+        if result:
+            return result[0]
+        else:
+            return None
+
+    def get_commissioner_login(self, email):
+        """
+        Return the password assigned to the commissioner email, if it exists.
+        Otherwise, return None.
+        """
+        self.cursor.execute("SELECT password FROM Commissioner WHERE commissioner_id = ?", (email,))
         result = self.cursor.fetchone()
 
         if result:
