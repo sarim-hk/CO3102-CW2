@@ -7,6 +7,11 @@ app.secret_key = secrets.token_hex(16)
 
 API_BASE_URL = "http://localhost:5001/gevs"
 
+@app.before_request
+def before_request():
+    if request.endpoint and "dashboard" in request.endpoint and not session.get("email"):
+        return redirect(url_for("login"))
+
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
@@ -16,17 +21,20 @@ def login():
         # API request to check login
         api_url = f"{API_BASE_URL}/login"
         payload = {"email": email, "password": password}
-        
         response = requests.post(api_url, json=payload)
 
-        if response.status_code == 200 and response.json().get("status") == "success":
+        if response.json().get("status") == "success":
             session["email"] = email
-            return redirect(url_for("dashboard"))
+            if response.json().get("account") == "voter":
+                return redirect(url_for("voter_dashboard"))
+            elif response.json().get("account") == "commissioner":
+                return redirect(url_for("commissioner_dashboard"))
         else:
             error_message = "Invalid email or password. Please try again."
             return render_template("login.html", error_message=error_message)
 
-    return render_template("login.html")
+    elif request.method == "GET":
+        return render_template("login.html")
 
 @app.route("/register", methods=["GET", "POST"])
 def register():
@@ -52,16 +60,46 @@ def register():
         response = requests.post(api_url, json=payload)
 
         if response.json().get("status") == "success":
-            return redirect(url_for("dashboard"))
+            session["email"] = email
+            return redirect(url_for("login"))
         else:
             error_message = response.json().get("message", "Registration failed. Please try again.")
             return render_template("register.html", error_message=error_message)
 
-    return render_template("register.html")
+    elif request.method == "GET":
 
-@app.route("/dashboard", methods=["GET", "POST"])
-def dashboard():
-    return render_template("dashboard.html")
+        response = requests.get(f"{API_BASE_URL}/constituencies")
+        print(response)
+        if response.json().get("status") == "success":
+            constituencies = response.json().get("constituencies")
+
+        return render_template("register.html", constituencies=constituencies)
+
+@app.route("/voter_dashboard", methods=["GET", "POST"])
+def voter_dashboard():
+    email = session.get("email")
+
+    response = requests.get(f"{API_BASE_URL}/candidates")
+    if response.json().get("status") == "success":
+        constituency_candidates = response.json().get("candidates")
+    else:
+        constituency_candidates = None
+
+    api_url = f"{API_BASE_URL}/check_vote_status"
+    payload = {"email": email}
+    response = requests.get(api_url, json=payload)
+
+    if response.json().get("status") == "success":
+        has_voted = response.json().get("has_voted")
+    else:
+        has_voted = None
+
+    return render_template("voter_dashboard.html", email=email, has_voted=has_voted, constituency_candidates=constituency_candidates)
+
+@app.route("/commissioner_dashboard", methods=["GET", "POST"])
+def commissioner_dashboard():
+    email = session.get("email")
+    return render_template("commissioner_dashboard.html", email=email)
 
 if __name__ == "__main__":
-    app.run(debug=True)
+    app.run(debug=True, port=5000)
