@@ -8,8 +8,9 @@ app = Flask(__name__)
 with database.Database() as db:
     db._create_tables()
     db._populate_uvc_codes()
+    db._populate_other_tables()
 
-@app.route("/api/login", methods=["POST"])
+@app.route("/gevs/login", methods=["POST"])
 def login():
     data = request.get_json()
 
@@ -27,7 +28,7 @@ def login():
     else:
         return jsonify({"status": "failed"}), 400
 
-@app.route("/api/register", methods=["POST"])
+@app.route("/gevs/register", methods=["POST"])
 def register():
     data = request.get_json()
 
@@ -58,20 +59,36 @@ def register():
     else:
         return jsonify({"status": "failed", "message": "Registration failed"}), 500
             
-
-"""
 @app.route("/gevs/constituency/<constituency_name>", methods=["GET"])
-def get_constituency_vote_count(constituency_name):
-    if constituency_name in constituency_data:
-        return jsonify({"constituency": constituency_name, "result": constituency_data[constituency_name]})
-    else:
-        return jsonify({"error": "Constituency not found"}), 404
+def get_constituency_results(constituency_name):
+    with database.Database() as db:
+        results = db.get_constituency_results(constituency_name)
 
-# Endpoint to return the election result by listing all MP seats won across all electoral districts for every political party
+    if results:
+        return jsonify({
+            "constituency": constituency_name,
+            "results": [{"candidate": result[0], "party": result[1], "vote_count": result[2]} for result in results]
+        })
+    else:
+        return None
+
 @app.route("/gevs/results", methods=["GET"])
 def get_election_results():
-    return jsonify(results_data)
-"""
+    with database.Database() as db:
+        seat_results = db.get_seats_by_party()
+
+    if seat_results:
+        winner = max(seat_results, key=lambda x: x["seat"])
+        seats_formatted = [{"party": result["party"], "seat": result["seat"]} for result in seat_results]
+
+        response_data = {
+            "status": "Completed",
+            "winner": winner["party"],
+            "seats": seats_formatted
+        }
+        return jsonify(response_data)
+    else:
+        return jsonify({"status": "Ongoing"}), 200
 
 if __name__ == "__main__":
     app.run(debug=True, port=5001)
