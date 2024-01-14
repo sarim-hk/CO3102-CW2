@@ -13,7 +13,6 @@ class Database:
 
     def _create_tables(self):
         """
-        Create tables for the first time.
         Ensures that tables will always exist, even if someone deletes database file, it will be recreated (though data will be lost).
         """
 
@@ -66,7 +65,6 @@ class Database:
 
     def _populate_uvc_codes(self):
         """
-        Will only run if the table is empty, on first run, basically.
         Populates the UVC_Code table with codes from UVCS.txt.
         """
 
@@ -82,6 +80,39 @@ class Database:
             self.cursor.executemany("INSERT INTO UVC_Code (UVC, used) VALUES (?, 0)", [(uvc,) for uvc in uvc_list])
 
             # Commit changes
+            self.cursor.connection.commit()
+
+    def _populate_other_tables(self):
+
+        self.cursor.execute("SELECT COUNT(*) FROM Constituency")
+        count = self.cursor.fetchone()[0]
+
+        # If table empty...
+        if count == 0:
+            self.cursor.executemany("""
+                INSERT INTO Constituency (constituency_name) VALUES (?)
+                """, [
+                ('Shangri-la-Town',),
+                ('Northern-Kunlun-Mountain',),
+                ('Western-Shangri-la',),
+                ('Naboo-Vallery',),
+                ('New-Felucia',)
+            ])
+
+            self.cursor.executemany("""
+                INSERT INTO Party (party) VALUES (?)
+                """, [
+                ('Blue Party',),
+                ('Red Party',),
+                ('Yellow Party',),
+                ('Independent',)
+            ])
+
+            self.cursor.execute("""
+                INSERT INTO Candidate (candidate, party_id, constituency_id, vote_count)
+                VALUES (?, ?, ?, ?)
+                """, ('Candidate 1', 2, 1, 0))
+
             self.cursor.connection.commit()
 
     def get_login(self, email):
@@ -106,7 +137,7 @@ class Database:
 
         self.cursor.execute("SELECT COUNT(*) FROM Voter WHERE voter_id = ?", (email,))
         count = self.cursor.fetchone()[0]
-        return count > 0
+        return bool(count > 0)
 
     def is_uvc_valid(self, uvc):
         """
@@ -116,11 +147,11 @@ class Database:
 
         self.cursor.execute("SELECT COUNT(*) FROM UVC_Code WHERE UVC = ? AND used = 0", (uvc,))
         count = self.cursor.fetchone()[0]
-        return count > 0
+        return bool(count > 0)
 
     def register_voter(self, email, full_name, dob, password, uvc, constituency_id):
         """
-        Register a new voter and return the voter_id.
+        Register a new voter and return the voter_id/email.
         Otherwise, return None.
         """
         
@@ -132,10 +163,44 @@ class Database:
 
             # Mark UVC as used
             self.cursor.execute("UPDATE UVC_Code SET used = 1 WHERE UVC = ?", (uvc,))
-
             self.cursor.connection.commit()
-
-            return email  # Returning email as voter_id for simplicity
+            return email
+        
         except Exception as e:
             print(f"Error during voter registration: {e}")
             return None
+
+    def get_constituency_results(self, constituency_name):
+        """
+        Get election results for a specific constituency and return as a dictionary.
+        If no results are available, return None.
+        """
+        self.cursor.execute("""
+            SELECT Candidate.candidate, Party.party, Candidate.vote_count
+            FROM Candidate
+            JOIN Party ON Candidate.party_id = Party.party_id
+            JOIN Constituency ON Candidate.constituency_id = Constituency.constituency_id
+            WHERE Constituency.constituency_name = ?
+        """, (constituency_name,))
+
+        results = self.cursor.fetchall()
+
+        if results:
+            return results
+        else:
+            return None
+    
+    def get_seats_by_party(self):
+        """
+        Get the count of seats won by each party.
+        Returns a list of dictionaries containing each parties seat count.
+        """
+        self.cursor.execute("""
+            SELECT Party.party, COUNT(Candidate.canid) as seat
+            FROM Candidate
+            JOIN Party ON Candidate.party_id = Party.party_id
+            GROUP BY Party.party
+        """)
+
+        seats_results = self.cursor.fetchall()
+        return [{"party": result[0], "seat": result[1]} for result in seats_results]
