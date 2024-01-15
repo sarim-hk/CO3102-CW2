@@ -2,8 +2,8 @@ import sqlite3
 import argon2
 
 class Database:
-    def __init__(self):
-        self.connection = sqlite3.connect("database.db")
+    def __init__(self, database_file="database.db"):
+        self.connection = sqlite3.connect(database_file)
         self.cursor = self.connection.cursor()
 
     def __enter__(self):
@@ -241,7 +241,6 @@ class Database:
         """
         self.cursor.execute("SELECT selected_candidate_id FROM Voter WHERE voter_id = ?", (email,))
         result = self.cursor.fetchone()
-        print(result)
 
         return result is not None and result[0] is not None
 
@@ -252,11 +251,14 @@ class Database:
         """
         try:
             self.cursor.execute("UPDATE Voter SET selected_candidate_id = ? WHERE voter_id = ?", (candidate_id, email))
+            self.cursor.execute("UPDATE Candidate SET vote_count = vote_count + 1 WHERE canid = ?", (candidate_id,))
+
             self.cursor.connection.commit()
             return True
+        
         except Exception as e:
             print(f"Error during vote submission: {e}")
-            return None
+            return False
 
     def get_all_candidates(self):
         """

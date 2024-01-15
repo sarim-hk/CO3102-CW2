@@ -1,4 +1,5 @@
 from flask import Flask, render_template, request, redirect, url_for, session
+from api import database
 import secrets
 import requests
 
@@ -67,43 +68,33 @@ def register():
             return render_template("register.html", error_message=error_message)
 
     elif request.method == "GET":
-
-        response = requests.get(f"{API_BASE_URL}/constituencies")
-        print(response)
-        if response.json().get("status") == "success":
-            constituencies = response.json().get("constituencies")
+        with database.Database(database_file="api/database.db") as db:
+            constituencies = db.get_constituencies()
 
         return render_template("register.html", constituencies=constituencies)
 
 @app.route("/voter_dashboard", methods=["GET", "POST"])
 def voter_dashboard():
+    success_message, error_message = None, None
     email = session.get("email")
 
-    response = requests.get(f"{API_BASE_URL}/candidates")
-    if response.json().get("status") == "success":
-        constituency_candidates = response.json().get("candidates")
-    else:
-        constituency_candidates = None
+    with database.Database(database_file="api/database.db") as db:
+        constituency_candidates = db.get_all_candidates()
+        has_voted = db.has_voter_voted(email)
+        voter_constituency = db.get_voter_constituency(email)
 
-    api_url = f"{API_BASE_URL}/check_vote_status"
-    payload = {"email": email}
-    response = requests.get(api_url, json=payload)
+    if request.method == "POST":
+        candidate_id = request.form.get("candidate")
 
-    if response.json().get("status") == "success":
-        has_voted = response.json().get("has_voted")
-    else:
-        has_voted = None
+        with database.Database(database_file="api/database.db") as db:
+            if db.cast_vote(email, candidate_id):
+                success_message = "Vote submitted successfully!"
+            else:
+                error_message = "Failed to submit vote."
 
-    api_url = f"{API_BASE_URL}/voter_constituency"
-    payload = {"voter_id": email}
-    response = requests.get(api_url, json=payload)
-    
-    if response.json().get("status") == "success":
-        voter_constituency = response.json().get("voter_constituency")
-    else:
-        voter_constituency = None
-
-    return render_template("voter_dashboard.html", email=email, has_voted=has_voted, constituency_candidates=constituency_candidates, voter_constituency=voter_constituency)
+    return render_template("voter_dashboard.html", email=email, has_voted=has_voted,
+                           constituency_candidates=constituency_candidates, voter_constituency=voter_constituency,
+                           success_message=success_message, error_message=error_message)
 
 @app.route("/commissioner_dashboard", methods=["GET", "POST"])
 def commissioner_dashboard():

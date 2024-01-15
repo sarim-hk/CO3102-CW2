@@ -10,36 +10,50 @@
 
 <body>
 
-<h1>Voter Dashboard</h1>
+    <h1>Voter Dashboard</h1>
 
-<!-- Display Election Information -->
-<h2>Election Information</h2>
-<p>Election Status: Ongoing</p> <!-- You can replace this with actual election status data -->
-<p>Selected Candidate: Candidate Name</p> <!-- You can replace this with actual selected candidate data -->
+    <!-- Display Election Information -->
+    <h2>Election Information</h2>
+    <p>Election Status: Ongoing</p> <!-- You can replace this with actual election status data -->
+    <p>Selected Candidate: Candidate Name</p> <!-- You can replace this with actual selected candidate data -->
 
-<!-- Candidate Selection Section -->
-<h2>Candidate Selection</h2>
+    <!-- Candidate Selection Section -->
+    <h2>Candidate Selection</h2>
 
-<!-- Check if the voter has already voted -->
-{% if has_voted %}
+    <!-- Check if the voter has already voted -->
+    {% if has_voted %}
     <p>You have already cast your vote. Thank you!</p>
-{% else %}
+    {% else %}
     <!-- Display list of candidates for the constituency -->
-    <form action="/gevs/vote" method="post">
+    <form action="{{ url_for('voter_dashboard') }}" method="post">
         <label for="candidate">Select your candidate:</label>
         <select name="candidate" id="candidate">
             <!-- Populate with candidate options dynamically -->
             {% for candidate in constituency_candidates %}
-                {% if candidate.constituency_id == voter_constituency %}
-                    <option value="{{ candidate.id }}">{{ candidate.name }} - {{ candidate.party }}</option>
-                {% endif %}
+            {% if candidate.constituency_id == voter_constituency %}
+            <option value="{{ candidate.id }}">{{ candidate.name }} - {{ candidate.party }}</option>
+            {% endif %}
             {% endfor %}
         </select>
+        <!-- Add a hidden input for candidate_id -->
+        <input type="hidden" name="candidate_id" id="candidate_id">
         <button type="submit">Submit Vote</button>
     </form>
-{% endif %}
+    {% endif %}
 
-<!-- Additional Voter Dashboard Content -->
+    <!-- Additional Voter Dashboard Content -->
+
+    <script>
+        // Set the candidate_id before form submission
+        document.querySelector('form').addEventListener('submit', function (event) {
+            event.preventDefault();
+            var selectedCandidate = document.getElementById('candidate');
+            var candidateIdInput = document.getElementById('candidate_id');
+            candidateIdInput.value = selectedCandidate.value;
+            this.submit();
+        });
+    </script>
 
 </body>
+
 </html>
