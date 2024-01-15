@@ -1,8 +1,8 @@
-from flask import Flask, request, jsonify, session, redirect, url_for, render_template
+from flask import Flask, request, jsonify
+from flask_cors import cross_origin
 import database
 import argon2
 from argon2.exceptions import VerifyMismatchError
-import requests
 
 app = Flask(__name__)
 
@@ -73,6 +73,7 @@ def register():
         return jsonify({"status": "failed", "message": "Registration failed"}), 500
 
 @app.route("/gevs/constituency/<constituency_name>", methods=["GET"])
+@cross_origin(origin='http://127.0.0.1:5000', headers=['Content-Type', 'Authorization'])
 def get_constituency_results(constituency_name):
     with database.Database() as db:
         results = db.get_constituency_results(constituency_name)
@@ -91,12 +92,20 @@ def get_election_results():
         seat_results = db.get_seats_by_party()
 
     if seat_results:
-        winner = max(seat_results, key=lambda x: x["seat"])
+        max_seat_count = max(result["seat"] for result in seat_results)
+        winning_party = next((result["party"] for result in seat_results if result["seat"] == max_seat_count), "")
+        
+        # Check if there is a tie
+        if list(result["seat"] for result in seat_results).count(max_seat_count) > 1:
+            winner = "Hung Parliament"
+        else:
+            winner = winning_party
+        
         seats_formatted = [{"party": result["party"], "seat": result["seat"]} for result in seat_results]
 
         response_data = {
             "status": "Completed",
-            "winner": winner["party"],
+            "winner": winner,
             "seats": seats_formatted
         }
         return jsonify(response_data)

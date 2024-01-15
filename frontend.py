@@ -2,8 +2,10 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from api import database
 import secrets
 import requests
+from flask_cors import CORS  # Import CORS from flask_cors
 
 app = Flask(__name__)
+CORS(app)
 app.secret_key = secrets.token_hex(16)
 
 API_BASE_URL = "http://localhost:5001/gevs"
@@ -12,6 +14,10 @@ API_BASE_URL = "http://localhost:5001/gevs"
 def before_request():
     if request.endpoint and "dashboard" in request.endpoint and not session.get("email"):
         return redirect(url_for("login"))
+
+@app.route("/")
+def index():
+    return redirect(url_for("login"))
 
 @app.route("/login", methods=["GET", "POST"])
 def login():
@@ -75,31 +81,46 @@ def register():
 
 @app.route("/voter_dashboard", methods=["GET", "POST"])
 def voter_dashboard():
-    success_message, error_message = None, None
     email = session.get("email")
-
     with database.Database(database_file="api/database.db") as db:
+        election_status = db.get_election_status()
         constituency_candidates = db.get_all_candidates()
         has_voted = db.has_voter_voted(email)
         voter_constituency = db.get_voter_constituency(email)
 
-    if request.method == "POST":
+    if election_status == "NOTOPEN":
+        return render_template("thanks.html", message="The election is not yet open. Come back when it is.")
+    elif election_status == "CONCLUDED":
+        return render_template("thanks.html", message="The election has concluded.")
+    elif has_voted and election_status == "ONGOING":
+        return render_template("thanks.html", message="Your vote has been submitted and the election is ongoing.")
+    elif request.method == "POST":
         candidate_id = request.form.get("candidate")
-
         with database.Database(database_file="api/database.db") as db:
             if db.cast_vote(email, candidate_id):
-                success_message = "Vote submitted successfully!"
-            else:
-                error_message = "Failed to submit vote."
-
-    return render_template("voter_dashboard.html", email=email, has_voted=has_voted,
-                           constituency_candidates=constituency_candidates, voter_constituency=voter_constituency,
-                           success_message=success_message, error_message=error_message)
+                return render_template("thanks.html", message="Your vote has been submitted and the election is ongoing.")
+    else:
+        return render_template("voter_dashboard.html", email=email, constituency_candidates=constituency_candidates, voter_constituency=voter_constituency)
 
 @app.route("/commissioner_dashboard", methods=["GET", "POST"])
 def commissioner_dashboard():
     email = session.get("email")
-    return render_template("commissioner_dashboard.html", email=email)
+    if request.method == "POST":
+        new_status = request.form.get("new_status")
+        with database.Database(database_file="api/database.db") as db:
+            db.update_election_status(new_status)
+
+    with database.Database(database_file="api/database.db") as db:
+        election_status = db.get_election_status()
+        constituencies = db.get_constituencies()
+        print(election_status)
+
+        election_results = None
+        if election_status == "CONCLUDED":
+            response = requests.get(f"{API_BASE_URL}/results")
+            election_results = response.json()
+
+    return render_template("commissioner_dashboard.html", email=email, election_status=election_status, election_results=election_results, constituencies=constituencies)
 
 if __name__ == "__main__":
     app.run(debug=True, port=5000)

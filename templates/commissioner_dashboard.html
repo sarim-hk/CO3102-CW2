@@ -4,11 +4,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <title>Welcome</title>
 </head>
 
 <body>
-    <h1>Hello Commissioner {{ email }}!</h1>
+    <!-- Display election status and buttons based on the status -->
+    <h2>Election Status: {{ election_status }}</h2>
+
+    <form action="{{ url_for('commissioner_dashboard') }}" method="post">
+        {% if election_status == "NOTOPEN" %}
+        <button type="submit" name="new_status" value="ONGOING">Start Election</button>
+        {% elif election_status == "ONGOING" %}
+        <button type="submit" name="new_status" value="CONCLUDED">End Election</button>
+        {% endif %}
+    </form>
+
+    <!-- Display election results -->
+    {% if election_status == "CONCLUDED" %}
+    <h2>Election Results</h2>
+    <p>Winner: {{ election_results.winner }}</p>
+    <ul>
+        {% for seat in election_results.seats %}
+        <li>{{ seat.party }} - {{ seat.seat }}</li>
+        {% endfor %}
+    </ul>
+    {% endif %}
+
+    <!-- Show real-time results only if the election is ONGOING -->
+    {% if election_status == "ONGOING" %}
+    <!-- Constituency picker for real-time results -->
+    <!-- Display real-time constituency results as a bar chart -->
+    <h2>Real-Time Constituency Results</h2>
+
+    <label for="constituencyPicker">Select Constituency:</label>
+    <select id="constituencyPicker" onchange="updateRealTimeResults()">
+        {% for constituency in constituencies %}
+        <option value="{{ constituency.constituency_name }}">{{ constituency.constituency_name }}</option>
+        {% endfor %}
+    </select>
+
+    <canvas id="constituencyChart" width="400" height="200"></canvas>
+
+    <!-- JavaScript for real-time updates and chart rendering -->
+    <script>
+        let chart;  // Declare the chart variable outside the function
+
+        function updateRealTimeResults() {
+            const selectedConstituency = document.getElementById('constituencyPicker').value;
+
+            fetch(`http://localhost:5001/gevs/constituency/${selectedConstituency}`)
+                .then(response => response.json())
+                .then(data => {
+                    updateChart(data.results);
+                })
+                .catch(error => console.error('Error fetching real-time results:', error));
+        }
+
+        function updateChart(results) {
+            // Destroy the existing chart if it exists
+            if (chart) {
+                chart.destroy();
+            }
+
+            // Get canvas context and create a bar chart
+            const ctx = document.getElementById('constituencyChart').getContext('2d');
+            chart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: results.map(result => result.candidate),
+                    datasets: [{
+                        label: 'Vote Count',
+                        data: results.map(result => result.vote_count),
+                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                        borderColor: 'rgba(75, 192, 192, 1)',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    scales: {
+                        y: {
+                            beginAtZero: true
+                        }
+                    }
+                }
+            });
+        }
+
+        setInterval(updateRealTimeResults, 10000);
+
+        // Initial update on page load
+        window.onload = updateRealTimeResults;
+    </script>
+    {% endif %}
+
 </body>
 
 </html>

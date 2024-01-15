@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Voter Dashboard</title>
+    <title>GEVS</title>
     <!-- Add any additional stylesheets or scripts as needed -->
 </head>
 
@@ -21,9 +21,6 @@
     <h2>Candidate Selection</h2>
 
     <!-- Check if the voter has already voted -->
-    {% if has_voted %}
-    <p>You have already cast your vote. Thank you!</p>
-    {% else %}
     <!-- Display list of candidates for the constituency -->
     <form action="{{ url_for('voter_dashboard') }}" method="post">
         <label for="candidate">Select your candidate:</label>
@@ -39,8 +36,6 @@
         <input type="hidden" name="candidate_id" id="candidate_id">
         <button type="submit">Submit Vote</button>
     </form>
-    {% endif %}
-
     <!-- Additional Voter Dashboard Content -->
 
     <script>

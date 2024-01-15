@@ -18,6 +18,12 @@ class Database:
         """
 
         self.cursor.execute("""
+            CREATE TABLE IF NOT EXISTS Election (
+                status VARCHAR(10)
+            )
+        """)
+
+        self.cursor.execute("""
             CREATE TABLE IF NOT EXISTS Constituency (
                 constituency_id INTEGER PRIMARY KEY,
                 constituency_name TEXT
@@ -93,12 +99,16 @@ class Database:
             self.cursor.connection.commit()
 
     def _populate_other_tables(self):
-
-        self.cursor.execute("SELECT COUNT(*) FROM Constituency")
+        self.cursor.execute("SELECT COUNT(*) FROM Election")
         count = self.cursor.fetchone()[0]
 
         # If table empty...
         if count == 0:
+            self.cursor.execute("""
+                INSERT INTO Election (status)
+                VALUES (?)
+                """, ("NOTOPEN",))
+
             self.cursor.executemany("""
                 INSERT INTO Constituency (constituency_name) VALUES (?)
                 """, [
@@ -286,3 +296,25 @@ class Database:
             return result[0]
         else:
             return None
+
+    def get_election_status(self):
+        self.cursor.execute("SELECT status FROM ELECTION")
+        result = self.cursor.fetchone()
+
+        if result:
+            return result[0]
+        else:
+            return None
+        
+    def update_election_status(self, new_status):
+        """
+        Update the election status in the Election table.
+        Returns True if the update is successful, False otherwise.
+        """
+        try:
+            self.cursor.execute("UPDATE Election SET status = ?", (new_status,))
+            self.cursor.connection.commit()
+            return True
+        except Exception as e:
+            print(f"Error during election status update: {e}")
+            return False

@@ -4,7 +4,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Register</title>
+    <title>GEVS</title>
 </head>
 
 <body>
@@ -37,10 +37,12 @@
             <option value="{{ constituency.constituency_id }}">{{ constituency.constituency_name }}</option>
             {% endfor %}
         </select>
-        
+
         <br>
         <button type="submit">Register</button>
-        </form>
+    </form>
+
+    <p>Already have an account? <a href="{{ url_for('login') }}">Login</a></p>
 </body>
 
 </html>
