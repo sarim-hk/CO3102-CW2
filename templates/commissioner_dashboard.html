@@ -4,100 +4,121 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>GEVS - Commissioner Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
+
+    <!-- Bootstrap JS and Popper.js -->
+    <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@popperjs/core@2.9.2/dist/umd/popper.min.js"></script>
+    <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js"></script>
+
+    <!-- Chart.js -->
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-    <title>Welcome</title>
 </head>
 
-<body>
-    <!-- Display election status and buttons based on the status -->
-    <h2>Election Status: {{ election_status }}</h2>
+<body class="bg-light">
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">GEVS</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="/login">Log Out<span class="sr-only">(current)</span></a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 
-    <form action="{{ url_for('commissioner_dashboard') }}" method="post">
-        {% if election_status == "NOTOPEN" %}
-        <button type="submit" name="new_status" value="ONGOING">Start Election</button>
-        {% elif election_status == "ONGOING" %}
-        <button type="submit" name="new_status" value="CONCLUDED">End Election</button>
+    <div class="container mt-5">
+        <h2>Election Status: {{ election_status }}</h2>
+
+        <form action="{{ url_for('commissioner_dashboard') }}" method="post">
+            {% if election_status == "NOTOPEN" %}
+            <button type="submit" name="new_status" value="ONGOING" class="btn btn-primary">Start Election</button>
+            {% elif election_status == "ONGOING" %}
+            <button type="submit" name="new_status" value="CONCLUDED" class="btn btn-primary">End Election</button>
+            {% endif %}
+        </form>
+
+        <!-- Display election results -->
+        {% if election_status == "CONCLUDED" %}
+        <h2>Election Results</h2>
+        <p>Winner: {{ election_results.winner }}</p>
+        <ul>
+            {% for seat in election_results.seats %}
+            <li>{{ seat.party }} - {{ seat.seat }}</li>
+            {% endfor %}
+        </ul>
         {% endif %}
-    </form>
 
-    <!-- Display election results -->
-    {% if election_status == "CONCLUDED" %}
-    <h2>Election Results</h2>
-    <p>Winner: {{ election_results.winner }}</p>
-    <ul>
-        {% for seat in election_results.seats %}
-        <li>{{ seat.party }} - {{ seat.seat }}</li>
-        {% endfor %}
-    </ul>
-    {% endif %}
+        <!-- Show real-time results only if the election is ONGOING -->
+        {% if election_status == "ONGOING" %}
+        <h2>Real-Time Constituency Results</h2>
 
-    <!-- Show real-time results only if the election is ONGOING -->
-    {% if election_status == "ONGOING" %}
-    <!-- Constituency picker for real-time results -->
-    <!-- Display real-time constituency results as a bar chart -->
-    <h2>Real-Time Constituency Results</h2>
+        <label for="constituencyPicker">Select Constituency:</label>
+        <select id="constituencyPicker" onchange="updateRealTimeResults()" class="form-control">
+            {% for constituency in constituencies %}
+            <option value="{{ constituency.constituency_name }}">{{ constituency.constituency_name }}</option>
+            {% endfor %}
+        </select>
 
-    <label for="constituencyPicker">Select Constituency:</label>
-    <select id="constituencyPicker" onchange="updateRealTimeResults()">
-        {% for constituency in constituencies %}
-        <option value="{{ constituency.constituency_name }}">{{ constituency.constituency_name }}</option>
-        {% endfor %}
-    </select>
+        <canvas id="constituencyChart" width="400" height="200"></canvas>
 
-    <canvas id="constituencyChart" width="400" height="200"></canvas>
+        <script>
+            let chart;  // Declare the chart variable outside the function
 
-    <!-- JavaScript for real-time updates and chart rendering -->
-    <script>
-        let chart;  // Declare the chart variable outside the function
+            function updateRealTimeResults() {
+                const selectedConstituency = document.getElementById('constituencyPicker').value;
 
-        function updateRealTimeResults() {
-            const selectedConstituency = document.getElementById('constituencyPicker').value;
-
-            fetch(`http://localhost:5001/gevs/constituency/${selectedConstituency}`)
-                .then(response => response.json())
-                .then(data => {
-                    updateChart(data.results);
-                })
-                .catch(error => console.error('Error fetching real-time results:', error));
-        }
-
-        function updateChart(results) {
-            // Destroy the existing chart if it exists
-            if (chart) {
-                chart.destroy();
+                fetch(`http://localhost:5001/gevs/constituency/${selectedConstituency}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        updateChart(data.results);
+                    })
+                    .catch(error => console.error('Error fetching real-time results:', error));
             }
 
-            // Get canvas context and create a bar chart
-            const ctx = document.getElementById('constituencyChart').getContext('2d');
-            chart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: results.map(result => result.candidate),
-                    datasets: [{
-                        label: 'Vote Count',
-                        data: results.map(result => result.vote_count),
-                        backgroundColor: 'rgba(75, 192, 192, 0.2)',
-                        borderColor: 'rgba(75, 192, 192, 1)',
-                        borderWidth: 1
-                    }]
-                },
-                options: {
-                    scales: {
-                        y: {
-                            beginAtZero: true
+            function updateChart(results) {
+                if (chart) {
+                    chart.destroy();
+                }
+
+                const ctx = document.getElementById('constituencyChart').getContext('2d');
+                chart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: results.map(result => result.candidate),
+                        datasets: [{
+                            label: 'Vote Count',
+                            data: results.map(result => result.vote_count),
+                            backgroundColor: 'rgba(75, 192, 192, 0.2)',
+                            borderColor: 'rgba(75, 192, 192, 1)',
+                            borderWidth: 1
+                        }]
+                    },
+                    options: {
+                        scales: {
+                            y: {
+                                beginAtZero: true
+                            }
                         }
                     }
-                }
-            });
-        }
+                });
+            }
 
-        setInterval(updateRealTimeResults, 10000);
+            setInterval(updateRealTimeResults, 10000);
 
-        // Initial update on page load
-        window.onload = updateRealTimeResults;
-    </script>
-    {% endif %}
-
+            // Initial update on page load
+            window.onload = updateRealTimeResults;
+        </script>
+        {% endif %}
+    </div>
 </body>
 
 </html>

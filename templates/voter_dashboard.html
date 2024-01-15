@@ -4,51 +4,50 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>GEVS</title>
-    <!-- Add any additional stylesheets or scripts as needed -->
+    <title>GEVS - Voter Dashboard</title>
+
+    <!-- Bootstrap CSS -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css">
 </head>
 
-<body>
+<body class="bg-light">
+    <!-- Navigation Bar -->
+    <nav class="navbar navbar-expand-lg navbar-dark bg-primary">
+        <a class="navbar-brand" href="#">GEVS</a>
+        <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navbarNav"
+            aria-controls="navbarNav" aria-expanded="false" aria-label="Toggle navigation">
+            <span class="navbar-toggler-icon"></span>
+        </button>
+        <div class="collapse navbar-collapse" id="navbarNav">
+            <ul class="navbar-nav ml-auto">
+                <li class="nav-item active">
+                    <a class="nav-link" href="/login">Log Out<span class="sr-only">(current)</span></a>
+                </li>
+            </ul>
+        </div>
+    </nav>
 
-    <h1>Voter Dashboard</h1>
+    <div class="container mt-5">
+        <h2 class="mt-4">Election Information</h2>
+        <p>Election Status: Ongoing</p>
+        <h2 class="mt-4">Candidate Selection</h2>
 
-    <!-- Display Election Information -->
-    <h2>Election Information</h2>
-    <p>Election Status: Ongoing</p> <!-- You can replace this with actual election status data -->
-    <p>Selected Candidate: Candidate Name</p> <!-- You can replace this with actual selected candidate data -->
-
-    <!-- Candidate Selection Section -->
-    <h2>Candidate Selection</h2>
-
-    <!-- Check if the voter has already voted -->
-    <!-- Display list of candidates for the constituency -->
-    <form action="{{ url_for('voter_dashboard') }}" method="post">
-        <label for="candidate">Select your candidate:</label>
-        <select name="candidate" id="candidate">
-            <!-- Populate with candidate options dynamically -->
-            {% for candidate in constituency_candidates %}
-            {% if candidate.constituency_id == voter_constituency %}
-            <option value="{{ candidate.id }}">{{ candidate.name }} - {{ candidate.party }}</option>
-            {% endif %}
-            {% endfor %}
-        </select>
-        <!-- Add a hidden input for candidate_id -->
-        <input type="hidden" name="candidate_id" id="candidate_id">
-        <button type="submit">Submit Vote</button>
-    </form>
-    <!-- Additional Voter Dashboard Content -->
-
-    <script>
-        // Set the candidate_id before form submission
-        document.querySelector('form').addEventListener('submit', function (event) {
-            event.preventDefault();
-            var selectedCandidate = document.getElementById('candidate');
-            var candidateIdInput = document.getElementById('candidate_id');
-            candidateIdInput.value = selectedCandidate.value;
-            this.submit();
-        });
-    </script>
-
+        <form action="{{ url_for('voter_dashboard') }}" method="post">
+            <div class="form-group">
+                <label for="candidate">Select your candidate:</label>
+                <select class="form-control" name="candidate" id="candidate">
+                    {% for candidate in constituency_candidates %}
+                    {% if candidate.constituency_id == voter_constituency %}
+                    <option value="{{ candidate.id }}">{{ candidate.name }} - {{ candidate.party }}</option>
+                    {% endif %}
+                    {% endfor %}
+                </select>
+            </div>
+            <!-- Add a hidden input for candidate_id -->
+            <input type="hidden" name="candidate_id" id="candidate_id">
+            <button type="submit" class="btn btn-primary">Submit Vote</button>
+        </form>
+    </div>
 </body>
 
 </html>

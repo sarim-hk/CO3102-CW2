@@ -2,7 +2,7 @@ from flask import Flask, render_template, request, redirect, url_for, session
 from api import database
 import secrets
 import requests
-from flask_cors import CORS  # Import CORS from flask_cors
+from flask_cors import CORS
 
 app = Flask(__name__)
 CORS(app)
@@ -25,7 +25,6 @@ def login():
         email = request.form["email"]
         password = request.form["password"]
 
-        # API request to check login
         api_url = f"{API_BASE_URL}/login"
         payload = {"email": email, "password": password}
         response = requests.post(api_url, json=payload)
@@ -53,7 +52,6 @@ def register():
         uvc = request.form["uvc"]
         constituency_id = request.form["constituency_id"]
 
-        # API request to register
         api_url = f"{API_BASE_URL}/register"
         payload = {
             "email": email,

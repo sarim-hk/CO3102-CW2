@@ -6,7 +6,7 @@ from argon2.exceptions import VerifyMismatchError
 
 app = Flask(__name__)
 
-# Database setup
+# Setup db init stuff
 with database.Database() as db:
     db._create_tables()
     db._populate_uvc_codes()
@@ -52,19 +52,15 @@ def register():
     uvc = data.get("uvc")
     constituency_id = data.get("constituency_id")
 
-    # Hash the password using argon2
     hashed_password = argon2.hash_password(password.encode())
 
     with database.Database() as db:
-        # Check if the email is already registered
         if db.is_email_registered(email):
             return jsonify({"status": "failed", "message": "Email already registered"}), 400
 
-        # Check if the UVC is valid and not used
         if not db.is_uvc_valid(uvc):
             return jsonify({"status": "failed", "message": "Invalid or already used UVC"}), 400
 
-        # Register the voter
         voter_id = db.register_voter(email, full_name, dob, hashed_password, uvc, constituency_id)
 
     if voter_id:
@@ -95,7 +91,7 @@ def get_election_results():
         max_seat_count = max(result["seat"] for result in seat_results)
         winning_party = next((result["party"] for result in seat_results if result["seat"] == max_seat_count), "")
         
-        # Check if there is a tie
+        # Check if thers a tie
         if list(result["seat"] for result in seat_results).count(max_seat_count) > 1:
             winner = "Hung Parliament"
         else:
